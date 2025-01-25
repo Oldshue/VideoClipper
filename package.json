@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "vercel-build": "yum install python3 -y && next build",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
