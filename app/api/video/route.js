@@ -5,7 +5,6 @@ import fs from 'fs';
 import os from 'os';
 
 export const runtime = 'nodejs';
-export const maxDuration = 300;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -65,15 +64,23 @@ export async function POST(request) {
         url
       ]);
 
-      process.on('close', (code) => {
-        if (code === 0) resolve();
-        else reject(new Error('Failed to process video'));
+      let errorOutput = '';
+      
+      process.stderr.on('data', (data) => {
+        errorOutput += data.toString();
       });
 
-      process.on('error', reject);
+      process.on('close', (code) => {
+        if (code === 0) resolve();
+        else reject(new Error(`Failed to process video: ${errorOutput}`));
+      });
+
+      process.on('error', (err) => {
+        reject(new Error(`Process error: ${err.message}`));
+      });
     });
 
-    // Read the file and return it
+    // Read the file
     const videoBuffer = await fs.promises.readFile(outputPath);
     
     // Clean up
@@ -88,6 +95,9 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to process video' }, { status: 500 });
+    console.error('Video processing error:', error);
+    return NextResponse.json({ 
+      error: error.message || 'Failed to process video'
+    }, { status: 500 });
   }
 }
