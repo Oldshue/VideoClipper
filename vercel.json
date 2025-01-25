@@ -1,4 +1,9 @@
 {
+  "git": {
+    "deploymentEnabled": {
+      "main": true
+    }
+  },
   "buildCommand": "next build",
   "functions": {
     "app/api/video/route.js": {
