@@ -1,9 +1,14 @@
 {
-  "buildCommand": "pip install yt-dlp && next build",
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm install && pip install yt-dlp",
   "functions": {
     "api/video.js": {
       "memory": 1024,
       "maxDuration": 300
     }
+  },
+  "env": {
+    "NODE_ENV": "production"
   }
 }
