@@ -1,127 +1,233 @@
-import React, { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 const VideoClipper = () => {
- const [url, setUrl] = useState('');
- const [startTime, setStartTime] = useState('');
- const [endTime, setEndTime] = useState('');
- const [error, setError] = useState('');
- const [isLoading, setIsLoading] = useState(false);
- const [progress, setProgress] = useState(0);
+  const [url, setUrl] = useState('');
+  const [startTime, setStartTime] = useState('');
+  const [endTime, setEndTime] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [videoInfo, setVideoInfo] = useState(null);
+  const [fetchingInfo, setFetchingInfo] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
 
- const handleDownload = async () => {
-   try {
-     setError('');
-     setIsLoading(true);
-     const response = await fetch('/api/video', {
-       method: 'POST',
-       headers: { 'Content-Type': 'application/json' },
-       body: JSON.stringify({ url, startTime, endTime })
-     });
+  const validateTime = (time) => {
+    if (!time) return false;
+    const regex = /^(?:(\d+):)?([0-5]?\d):([0-5]\d)$/;
+    return regex.test(time);
+  };
 
-     if (!response.ok) {
-       const data = await response.json();
-       throw new Error(data.error || 'Download failed');
-     }
+  const fetchVideoInfo = useCallback(async (url) => {
+    if (!url) return;
+    
+    try {
+      setFetchingInfo(true);
+      setError('');
+      
+      const response = await fetch(`/api/video?url=${encodeURIComponent(url)}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+        throw new Error(errorData.error || `Error: ${response.status}`);
+      }
+      
+      const data = await response.json().catch(() => {
+        throw new Error('Invalid response format');
+      });
+      
+      setVideoInfo(data);
+    } catch (err) {
+      setError(err.message);
+      setVideoInfo(null);
+    } finally {
+      setFetchingInfo(false);
+    }
+  }, []);
 
-     // Handle download
-     const blob = await response.blob();
-     const downloadUrl = URL.createObjectURL(blob);
-     const a = document.createElement('a');
-     a.href = downloadUrl;
-     a.download = 'clip.mp4';
-     document.body.appendChild(a);
-     a.click();
-     document.body.removeChild(a);
-     URL.revokeObjectURL(downloadUrl);
+  const handleUrlChange = (e) => {
+    const newUrl = e.target.value.trim();
+    setUrl(newUrl);
+    setError('');
+    setVideoInfo(null);
+    
+    if (newUrl) {
+      fetchVideoInfo(newUrl);
+    }
+  };
 
-   } catch (err) {
-     setError(err.message);
-   } finally {
-     setIsLoading(false);
-     setProgress(0);
-   }
- };
+  const handleDownload = async () => {
+    try {
+      if (!url || !startTime || !endTime) {
+        throw new Error('Please fill in all fields');
+      }
 
- return (
-   <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center p-4">
-     <div className="w-full max-w-md bg-white rounded-lg shadow-xl p-8">
-       <h1 className="text-3xl font-bold mb-8 text-gray-800">Video Clip Tool</h1>
-       
-       <div className="space-y-6">
-         <div>
-           <label className="block text-sm font-semibold text-gray-700 mb-2">
-             YouTube URL
-           </label>
-           <input
-             type="text"
-             className="w-full px-4 py-2 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-             placeholder="https://youtube.com/watch?v=..."
-             value={url}
-             onChange={(e) => setUrl(e.target.value)}
-             disabled={isLoading}
-           />
-         </div>
+      if (!validateTime(startTime) || !validateTime(endTime)) {
+        throw new Error('Invalid time format. Use HH:MM:SS or MM:SS');
+      }
 
-         <div className="grid grid-cols-2 gap-4">
-           <div>
-             <label className="block text-sm font-semibold text-gray-700 mb-2">
-               Start Time
-             </label>
-             <input
-               type="text"
-               className="w-full px-4 py-2 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-               placeholder="MM:SS"
-               value={startTime}
-               onChange={(e) => setStartTime(e.target.value)}
-               disabled={isLoading}
-             />
-           </div>
+      setIsLoading(true);
+      setError('');
+      setDownloadProgress(0);
 
-           <div>
-             <label className="block text-sm font-semibold text-gray-700 mb-2">
-               End Time
-             </label>
-             <input
-               type="text"
-               className="w-full px-4 py-2 rounded border border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-               placeholder="MM:SS"
-               value={endTime}
-               onChange={(e) => setEndTime(e.target.value)}
-               disabled={isLoading}
-             />
-           </div>
-         </div>
+      const response = await fetch('/api/video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url, startTime, endTime })
+      });
 
-         {error && (
-           <div className="p-4 bg-red-50 border-l-4 border-red-500 text-red-700">
-             {error}
-           </div>
-         )}
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
+        throw new Error(errorData.error || `Error: ${response.status}`);
+      }
 
-         {progress > 0 && progress < 100 && (
-           <div className="w-full bg-gray-200 rounded-full h-2">
-             <div 
-               className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-               style={{ width: `${progress}%` }}
-             />
-           </div>
-         )}
+      if (response.headers.get('Content-Type')?.includes('application/json')) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Processing failed');
+      }
 
-         <button
-           className={`w-full py-3 px-4 rounded-lg text-white font-semibold transition duration-200 ${
-             isLoading 
-               ? 'bg-gray-400 cursor-not-allowed'
-               : 'bg-blue-500 hover:bg-blue-600 active:bg-blue-700'
-           }`}
-           onClick={handleDownload}
-           disabled={isLoading || !url || !startTime || !endTime}
-         >
-           {isLoading ? 'Processing...' : 'Download Clip'}
-         </button>
-       </div>
-     </div>
-   </div>
- );
+      const reader = response.body.getReader();
+      const contentLength = +response.headers.get('Content-Length') || 0;
+      const chunks = [];
+      let receivedLength = 0;
+
+      while(true) {
+        const {done, value} = await reader.read();
+        
+        if (done) break;
+        
+        chunks.push(value);
+        receivedLength += value.length;
+        
+        if (contentLength > 0) {
+          setDownloadProgress(Math.round((receivedLength / contentLength) * 100));
+        }
+      }
+
+      const blob = new Blob(chunks, {type: 'video/mp4'});
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = 'clip.mp4';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsLoading(false);
+      setDownloadProgress(0);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-gray-800 rounded-lg shadow-xl p-6">
+        <h1 className="text-2xl font-bold mb-6 text-white">Video Clip Tool</h1>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-200 mb-1">
+              Video URL
+            </label>
+            <input
+              type="text"
+              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+              placeholder="Enter YouTube URL"
+              value={url}
+              onChange={handleUrlChange}
+              disabled={isLoading}
+            />
+          </div>
+
+          {fetchingInfo && (
+            <div className="text-blue-400 text-sm animate-pulse">
+              Loading video details...
+            </div>
+          )}
+
+          {videoInfo && (
+            <div className="bg-gray-700 p-4 rounded border border-gray-600">
+              <h3 className="font-medium text-white mb-2">{videoInfo.title}</h3>
+              <div className="flex items-center gap-4">
+                {videoInfo.thumbnail && (
+                  <img 
+                    src={videoInfo.thumbnail} 
+                    alt="Video thumbnail" 
+                    className="w-24 h-auto rounded"
+                  />
+                )}
+                <div className="text-sm text-gray-300">
+                  <p>Quality: {videoInfo.quality}</p>
+                  <p>Duration: {Math.floor(videoInfo.duration / 60)}:{(videoInfo.duration % 60).toString().padStart(2, '0')}</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-1">
+                Start Time
+              </label>
+              <input
+                type="text"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                placeholder="MM:SS or HH:MM:SS"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-200 mb-1">
+                End Time
+              </label>
+              <input
+                type="text"
+                className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
+                placeholder="MM:SS or HH:MM:SS"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+          </div>
+
+          {error && (
+            <div className="bg-red-900 border-l-4 border-red-500 p-4 text-white">
+              {error}
+            </div>
+          )}
+
+          {downloadProgress > 0 && downloadProgress < 100 && (
+            <div className="w-full bg-gray-700 rounded-full h-2.5">
+              <div 
+                className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
+                style={{ width: `${downloadProgress}%` }}
+              ></div>
+            </div>
+          )}
+
+          <button
+            className={`w-full p-2 rounded text-white font-medium ${
+              isLoading || fetchingInfo || !videoInfo
+                ? 'bg-blue-500 opacity-50 cursor-not-allowed' 
+                : 'bg-blue-500 hover:bg-blue-600'
+            }`}
+            onClick={handleDownload}
+            disabled={isLoading || fetchingInfo || !videoInfo}
+          >
+            {isLoading ? 
+              downloadProgress > 0 ? 
+                `Downloading (${downloadProgress}%)` : 
+                'Processing...' 
+              : 'Download Clip'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 export default VideoClipper;
