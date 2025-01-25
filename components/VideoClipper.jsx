@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription } from '@/components/ui/alert-dialog';
 
+// Rest of the file remains unchanged
 const VideoClipper = () => {
   const [url, setUrl] = useState('');
   const [startTime, setStartTime] = useState('');
