@@ -15,9 +15,26 @@ export default async function handler(req, res) {
     try {
       const infoProcess = spawn('yt-dlp', ['--dump-json', url]);
       let output = '';
-      for await (const chunk of infoProcess.stdout) {
-        output += chunk;
-      }
+      let errorOutput = '';
+
+      infoProcess.stdout.on('data', (data) => {
+        output += data;
+      });
+
+      infoProcess.stderr.on('data', (data) => {
+        errorOutput += data;
+      });
+
+      await new Promise((resolve, reject) => {
+        infoProcess.on('close', (code) => {
+          if (code === 0) {
+            resolve();
+          } else {
+            reject(new Error(`yt-dlp failed: ${errorOutput}`));
+          }
+        });
+      });
+
       const videoInfo = JSON.parse(output);
       res.status(200).json({
         title: videoInfo.title,
@@ -26,6 +43,7 @@ export default async function handler(req, res) {
         thumbnail: videoInfo.thumbnail
       });
     } catch (error) {
+      console.error('Video info error:', error);
       res.status(500).json({ error: 'Video info retrieval failed' });
     }
   }
@@ -42,7 +60,7 @@ export default async function handler(req, res) {
     try {
       await new Promise((resolve, reject) => {
         const ytDlp = spawn('yt-dlp', [
-          '--format', '137+140/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
+          '--format', 'best[ext=mp4]/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best',
           '--no-playlist',
           '--download-sections', `*${startTime}-${endTime}`,
           '--recode-video', 'mp4',
@@ -79,6 +97,13 @@ export default async function handler(req, res) {
       stream.pipe(res);
       
       stream.on('end', () => unlink(outputFile).catch(console.error));
+      stream.on('error', async (error) => {
+        console.error('Stream error:', error);
+        await unlink(outputFile).catch(() => {});
+        if (!res.headersSent) {
+          res.status(500).json({ error: 'Video streaming failed' });
+        }
+      });
 
     } catch (error) {
       console.error('Processing error:', error);
