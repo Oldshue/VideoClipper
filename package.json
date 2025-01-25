@@ -2,6 +2,9 @@
   "name": "youtube-clipper",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": "18.x"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -19,7 +22,9 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "tailwindcss-animate": "1.0.7",
-    "yt-dlp-exec": "1.0.2"
+    "yt-dlp-exec": "1.0.2",
+    "bin-version-check": "5.1.0",
+    "youtubedl-core": "4.11.7"
   },
   "devDependencies": {
     "@types/node": "20.11.16",
