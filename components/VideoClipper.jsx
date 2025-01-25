@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Alert, AlertDescription } from '../components/ui/alert-dialog';
 
-// Rest of the file stays exactly the same
 const VideoClipper = () => {
   const [url, setUrl] = useState('');
   const [startTime, setStartTime] = useState('');
@@ -165,9 +163,9 @@ const VideoClipper = () => {
           </div>
 
           {error && (
-            <Alert variant="destructive">
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+              <span className="block sm:inline">{error}</span>
+            </div>
           )}
 
           <button
