@@ -1,4 +1,4 @@
-import VideoClipper from '@/components/VideoClipper';
+import VideoClipper from '../components/VideoClipper';
 
 export default function Home() {
   return <VideoClipper />;
