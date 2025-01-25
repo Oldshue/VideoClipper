@@ -18,57 +18,54 @@ export async function GET(request) {
 
     const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`;
     const response = await fetch(oembedUrl);
+    const contentType = response.headers.get('content-type');
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch video info: ${response.status}`);
+    if (!response.ok || !contentType?.includes('application/json')) {
+      throw new Error('Invalid response from YouTube');
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      data = await response.json();
+    } catch (e) {
+      throw new Error('Failed to parse YouTube response');
+    }
 
     return NextResponse.json({
-      title: data.title,
+      title: data.title || 'Unknown Title',
       thumbnail: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
       quality: 'HD',
       duration: 0
     });
   } catch (error) {
-    console.error('Video info error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch video info' }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'Failed to fetch video info' }, { status: 500 });
   }
 }
 
 export async function POST(request) {
   try {
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (e) {
+      return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    }
+
     const { url, startTime, endTime } = body;
 
     if (!url || !startTime || !endTime) {
-      return NextResponse.json(
-        { error: 'Missing required parameters' }, 
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
     const videoId = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^?&]+)/)?.[1];
     if (!videoId) {
-      return NextResponse.json(
-        { error: 'Invalid YouTube URL' }, 
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid YouTube URL' }, { status: 400 });
     }
 
-    // Simulate download URL generation
-    const downloadUrl = `https://your-download-service.com/download?v=${videoId}&start=${startTime}&end=${endTime}`;
-    
-    return NextResponse.json({ downloadUrl });
+    return NextResponse.json({
+      downloadUrl: `https://your-download-service.com/download?v=${videoId}&start=${startTime}&end=${endTime}`
+    });
   } catch (error) {
-    console.error('Processing error:', error);
-    return NextResponse.json(
-      { error: 'Failed to process video request' }, 
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message || 'Failed to process video' }, { status: 500 });
   }
 }
