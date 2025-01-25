@@ -1,4 +1,5 @@
 {
+  "buildCommand": "pip install yt-dlp && next build",
   "functions": {
     "api/video.js": {
       "memory": 1024,
