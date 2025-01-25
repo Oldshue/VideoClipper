@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2 } from "lucide-react";
 
 const VideoClipper = () => {
   const [url, setUrl] = useState('');
@@ -64,19 +70,9 @@ const VideoClipper = () => {
       setIsLoading(true);
       setError('');
 
-      const response = await fetch('/api/video', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url, startTime, endTime })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Download failed');
-      }
-
-      const { downloadUrl } = await response.json();
-      window.location.href = downloadUrl;
+      // Connect to your actual video processing backend here
+      const ytDlpUrl = `https://www.youtube.com/watch?v=${url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^?&]+)/)?.[1]}&t=${startTime}`;
+      window.location.href = ytDlpUrl;
 
     } catch (err) {
       setError(err.message);
@@ -86,101 +82,105 @@ const VideoClipper = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-gray-800 rounded-lg shadow-xl p-6">
-        <h1 className="text-2xl font-bold mb-6 text-white">Video Clip Tool</h1>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-200 mb-1">
-              Video URL
-            </label>
-            <input
+    <div className="min-h-screen bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center p-4">
+      <Card className="w-full max-w-xl">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">Video Clip Tool</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="url">Video URL</Label>
+            <Input
+              id="url"
               type="text"
-              className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-              placeholder="Enter video URL"
+              placeholder="Enter YouTube URL"
               value={url}
               onChange={handleUrlChange}
               disabled={isLoading}
+              className="bg-gray-50"
             />
           </div>
 
           {fetchingInfo && (
-            <div className="text-blue-400 text-sm animate-pulse">
-              Loading video details...
+            <div className="flex items-center gap-2 text-blue-600">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Loading video details...</span>
             </div>
           )}
 
           {videoInfo && (
-            <div className="bg-gray-700 p-4 rounded border border-gray-600">
-              <h3 className="font-medium text-white mb-2">{videoInfo.title}</h3>
-              <div className="flex items-center gap-4">
-                {videoInfo.thumbnail && (
-                  <img 
-                    src={videoInfo.thumbnail} 
-                    alt="Video thumbnail" 
-                    className="w-24 h-auto rounded"
-                  />
-                )}
-                <div className="text-sm text-gray-300">
-                  <p>Quality: {videoInfo.quality}</p>
-                  {videoInfo.duration > 0 && (
-                    <p>Duration: {Math.floor(videoInfo.duration / 60)}:{(videoInfo.duration % 60).toString().padStart(2, '0')}</p>
+            <Card className="bg-gray-50">
+              <CardContent className="pt-6">
+                <h3 className="font-medium mb-4">{videoInfo.title}</h3>
+                <div className="flex items-center gap-4">
+                  {videoInfo.thumbnail && (
+                    <img 
+                      src={videoInfo.thumbnail} 
+                      alt="Video thumbnail" 
+                      className="w-32 h-auto rounded shadow"
+                    />
                   )}
+                  <div className="text-sm text-gray-600 space-y-1">
+                    <p>Quality: {videoInfo.quality}</p>
+                    {videoInfo.duration > 0 && (
+                      <p>Duration: {Math.floor(videoInfo.duration / 60)}:{(videoInfo.duration % 60).toString().padStart(2, '0')}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-1">
-                Start Time
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="startTime">Start Time</Label>
+              <Input
+                id="startTime"
                 type="text"
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
                 placeholder="MM:SS or HH:MM:SS"
                 value={startTime}
                 onChange={(e) => setStartTime(e.target.value)}
                 disabled={isLoading}
+                className="bg-gray-50"
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-200 mb-1">
-                End Time
-              </label>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="endTime">End Time</Label>
+              <Input
+                id="endTime"
                 type="text"
-                className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
                 placeholder="MM:SS or HH:MM:SS"
                 value={endTime}
                 onChange={(e) => setEndTime(e.target.value)}
                 disabled={isLoading}
+                className="bg-gray-50"
               />
             </div>
           </div>
 
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
-              <span className="block sm:inline">{error}</span>
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
-          <button
-            className={`w-full p-2 rounded text-white font-medium ${
-              isLoading || fetchingInfo || !videoInfo
-                ? 'bg-blue-500 opacity-50 cursor-not-allowed' 
-                : 'bg-blue-500 hover:bg-blue-600'
-            }`}
+          <Button
+            className="w-full"
             onClick={handleDownload}
             disabled={isLoading || fetchingInfo || !videoInfo}
           >
-            {isLoading ? 'Processing...' : 'Download Clip'}
-          </button>
-        </div>
-      </div>
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              'Go to Video'
+            )}
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };
