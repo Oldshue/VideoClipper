@@ -2,8 +2,7 @@
   "buildCommand": "next build",
   "functions": {
     "app/api/video/route.js": {
-      "memory": 1024,
-      "maxDuration": 10
+      "memory": 1024
     }
   }
 }
