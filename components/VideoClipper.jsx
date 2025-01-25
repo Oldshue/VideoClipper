@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const VideoClipper = () => {
   const [url, setUrl] = useState('');
@@ -8,7 +9,6 @@ const VideoClipper = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [videoInfo, setVideoInfo] = useState(null);
   const [fetchingInfo, setFetchingInfo] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
 
   const validateTime = (time) => {
     if (!time) return false;
@@ -25,14 +25,11 @@ const VideoClipper = () => {
       
       const response = await fetch(`/api/video?url=${encodeURIComponent(url)}`);
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Network error' }));
+        const errorData = await response.json();
         throw new Error(errorData.error || `Error: ${response.status}`);
       }
       
-      const data = await response.json().catch(() => {
-        throw new Error('Invalid response format');
-      });
-      
+      const data = await response.json();
       setVideoInfo(data);
     } catch (err) {
       setError(err.message);
@@ -65,7 +62,6 @@ const VideoClipper = () => {
 
       setIsLoading(true);
       setError('');
-      setDownloadProgress(0);
 
       const response = await fetch('/api/video', {
         method: 'POST',
@@ -74,48 +70,17 @@ const VideoClipper = () => {
       });
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Download failed' }));
-        throw new Error(errorData.error || `Error: ${response.status}`);
-      }
-
-      if (response.headers.get('Content-Type')?.includes('application/json')) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Processing failed');
+        throw new Error(errorData.error || 'Download failed');
       }
 
-      const reader = response.body.getReader();
-      const contentLength = +response.headers.get('Content-Length') || 0;
-      const chunks = [];
-      let receivedLength = 0;
-
-      while(true) {
-        const {done, value} = await reader.read();
-        
-        if (done) break;
-        
-        chunks.push(value);
-        receivedLength += value.length;
-        
-        if (contentLength > 0) {
-          setDownloadProgress(Math.round((receivedLength / contentLength) * 100));
-        }
-      }
-
-      const blob = new Blob(chunks, {type: 'video/mp4'});
-      const downloadUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = 'clip.mp4';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
+      const { downloadUrl } = await response.json();
+      window.location.href = downloadUrl;
 
     } catch (err) {
       setError(err.message);
     } finally {
       setIsLoading(false);
-      setDownloadProgress(0);
     }
   };
 
@@ -132,7 +97,7 @@ const VideoClipper = () => {
             <input
               type="text"
               className="w-full p-2 bg-gray-700 border border-gray-600 rounded text-white"
-              placeholder="Enter YouTube URL"
+              placeholder="Enter video URL"
               value={url}
               onChange={handleUrlChange}
               disabled={isLoading}
@@ -158,7 +123,9 @@ const VideoClipper = () => {
                 )}
                 <div className="text-sm text-gray-300">
                   <p>Quality: {videoInfo.quality}</p>
-                  <p>Duration: {Math.floor(videoInfo.duration / 60)}:{(videoInfo.duration % 60).toString().padStart(2, '0')}</p>
+                  {videoInfo.duration > 0 && (
+                    <p>Duration: {Math.floor(videoInfo.duration / 60)}:{(videoInfo.duration % 60).toString().padStart(2, '0')}</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -195,18 +162,9 @@ const VideoClipper = () => {
           </div>
 
           {error && (
-            <div className="bg-red-900 border-l-4 border-red-500 p-4 text-white">
-              {error}
-            </div>
-          )}
-
-          {downloadProgress > 0 && downloadProgress < 100 && (
-            <div className="w-full bg-gray-700 rounded-full h-2.5">
-              <div 
-                className="bg-blue-500 h-2.5 rounded-full transition-all duration-300"
-                style={{ width: `${downloadProgress}%` }}
-              ></div>
-            </div>
+            <Alert variant="destructive">
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
           )}
 
           <button
@@ -218,11 +176,7 @@ const VideoClipper = () => {
             onClick={handleDownload}
             disabled={isLoading || fetchingInfo || !videoInfo}
           >
-            {isLoading ? 
-              downloadProgress > 0 ? 
-                `Downloading (${downloadProgress}%)` : 
-                'Processing...' 
-              : 'Download Clip'}
+            {isLoading ? 'Processing...' : 'Download Clip'}
           </button>
         </div>
       </div>
